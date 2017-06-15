@@ -97,11 +97,11 @@ def clean_item(item):
             del item['heroImage']['image']['gcsDir']
         if 'gcsBucket' in item['heroImage']['image']:
             del item['heroImage']['image']['gcsBucket']
-    # if 'heroVideo' in item and isinstance(item['heroVideo'], dict) and 'video' in item['heroVideo']:
-    #     if 'gcsDir' in item['heroVideo']['video']:
-    #         del item['heroVideo']['video']['gcsDir']
-    #     if 'gcsBucket' in item['heroVideo']['video']:
-    #         del item['heroVideo']['video']['gcsBucket']
+    if 'heroVideo' in item and isinstance(item['heroVideo'], dict) and 'video' in item['heroVideo']:
+        if 'gcsDir' in item['heroVideo']['video']:
+            del item['heroVideo']['video']['gcsDir']
+        if 'gcsBucket' in item['heroVideo']['video']:
+            del item['heroVideo']['video']['gcsBucket']
     if 'brief' in item and isinstance(item['brief'], dict) and 'draft' in item['brief']:
         del item['brief']['draft']
     if 'content' in item and isinstance(item['content'], dict) and 'draft' in item['content']:
