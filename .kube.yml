@@ -1,0 +1,50 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{.serviceName}}
+spec:
+  selector:
+    app: {{.app}}
+    tier: {{.tier}}
+  ports:
+  - port: 8080
+    protocol: TCP
+    targetPort: http
+  type: LoadBalancer
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    app: {{.app}}
+    tier: {{.tier}}
+  name: {{.deployName}}
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: mm-rest
+        tier: backend
+    spec:
+      containers:
+      - image: {{.image}}
+        name: mm-rest
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        volumeMounts:
+        - mountPath: /usr/src/app/tr-projects-rest/settings.py
+          name: configmap-volume
+          subPath: settings.py
+      volumes:
+      - name: configmap-volume
+        configMap:
+          name: rest-external
+  revisionHistoryLimit: 5
+  strategy:
+    rollingUpdate:
+      maxSurge: 2
+      maxUnavailable: 25%
+    type: RollingUpdate

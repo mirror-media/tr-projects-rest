@@ -345,6 +345,9 @@ def handle_combo():
                     response["_endpoints"][action] = action_data    
                 for item in response["_endpoints"][action]["_items"]:
                     replace_imageurl(item)
+    # If there is no request args for endpoint, set the header Content-Type to json
+    if len(req) == 0:
+        headers['Content-Type'] = "application/json"
     return Response(json.dumps(response), headers=headers)        
 
 @app.route("/posts-alias", methods=['GET', 'POST'])

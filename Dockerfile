@@ -1,4 +1,5 @@
-FROM pypi/eve
+FROM python:2-onbuild
+# FROM pypi/eve
 
 RUN groupadd user && useradd --create-home --home-dir /home/user -g user user
 
@@ -17,6 +18,7 @@ RUN buildDeps=' \
     && set -x \
     && apt-get update && apt-get install -y $buildDeps --no-install-recommends && rm -rf /var/lib/apt/lists/* \
     && pip install --upgrade pip \
+    # && pip install -r requirements.txt
     && pip install flask \
     && pip install Eve \
     && pip install uwsgi 
