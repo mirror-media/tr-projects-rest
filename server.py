@@ -26,7 +26,7 @@ def get_full_relateds(item, key):
         tc = app.test_client()
         all_relateds =  ",".join(map(lambda x: '"' + str(x["_id"]) + '"' if type(x) is dict else '"' + str(x) + '"', item[key]))
         resp = tc.get('posts?where={"_id":{"$in":[' + all_relateds + ']}}', headers=headers)
-        resp_data = json.loads(resp.data)
+        resp_data = json.loads(resp.data.decode("utf-8"))
         result = []
         for i in item[key]: 
             for j in resp_data['_items']:
@@ -245,8 +245,9 @@ def get_sections_latest():
     tc = app.test_client()
     resp = tc.get('/sections', headers=headers)
     resp_header = dict(resp.headers)
-    del headers['Content-Length']
-    resp_data = json.loads(str(resp.data))
+    if "Content-Length" in headers:
+        del headers["Content-Length"]
+    resp_data = json.loads(resp.data.decode("utf-8"))
     section_items = resp_data["_items"]
     section_items = sorted(section_items, key = lambda x: x["sortOrder"])
     if ("_error" not in resp_data and "_items" in resp_data):
@@ -256,7 +257,7 @@ def get_sections_latest():
             else:
                 endpoint = 'posts'
             sec_resp = tc.get('/' + endpoint + '?where={"sections":"' + item['_id'] + '","isFeatured":true}&max_results=5&sort=-publishedDate', headers=headers)
-            sec_items = json.loads(sec_resp.data)
+            sec_items = json.loads(sec_resp.data.decode("utf-8"))
             if '_error' not in sec_items and "_items" in sec_items:
                 #response[item['name']] = sec_items['_items']
                 for sec_item in sec_items:
@@ -334,7 +335,8 @@ def handle_combo():
         if action in endpoints:
             action_resp = tc.get(endpoints[action], headers=headers)
             headers = action_resp.headers
-            action_data = json.loads(action_resp.data)
+            # print(json.loads(str(action_resp.data)))
+            action_data = json.loads(action_resp.data.decode("utf-8"))
             if "_error" not in action_data and "_items" in action_data and len(action_data["_items"]) > 0:
                 if '_meta' in action_data:
                     response['_meta'] = action_data['_meta']
@@ -346,8 +348,8 @@ def handle_combo():
                 for item in response["_endpoints"][action]["_items"]:
                     replace_imageurl(item)
     # If there is no request args for endpoint, set the header Content-Type to json
-    if len(req) == 0:
-        headers['Content-Type'] = "application/json"
+    if not ('Content-Type' in headers and headers['Content-Type'] == "application/json"):
+       headers['Content-Type'] = "application/json" 
     return Response(json.dumps(response), headers=headers)        
 
 @app.route("/posts-alias", methods=['GET', 'POST'])
