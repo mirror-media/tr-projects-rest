@@ -162,7 +162,7 @@ def before_returning_listing(response):
             tc = app.test_client()
             cover_photo = str(item['heroVideo']['coverPhoto'])
             resp = tc.get('images?where={"_id":{"$in":["' + cover_photo + '"]}}', headers=headers)
-            resp_data = json.loads(resp.data)
+            resp_data = json.loads(resp.data.decode("utf-8"))
             result = {x: resp_data['_items'][0][x] for x in ('image','_id','description','tags','createTime')}
             
             item['heroVideo']['coverPhoto'] = result
@@ -278,7 +278,7 @@ def get_timeline(topicId):
         tc = app.test_client()
         topic_url = '/topics?where={"_id":"' + topicId + '"}'
         topic_resp = tc.get(topic_url, headers=headers)
-        topic_data = json.loads(topic_resp.data)
+        topic_data = json.loads(topic_resp.data.decode("utf-8"))
         if "_items" in topic_data and len(topic_data["_items"]) > 0:
             topic_data["_items"][0] = clean_item(topic_data["_items"][0])
             if 'brief' in topic_data["_items"][0] and 'apiData' in topic_data["_items"][0]['brief']:
@@ -288,7 +288,7 @@ def get_timeline(topicId):
         activity_uri = '/activities?where={"topics":"' + topicId + '"}&max_results=40'
         resp = tc.get(activity_uri, headers=headers)
         resp_header = dict(resp.headers)
-        activities_data = json.loads(resp.data)
+        activities_data = json.loads(resp.data.decode("utf-8"))
         for item in activities_data["_items"]:
             item = clean_item(item)
             replace_imageurl(item)
@@ -301,7 +301,7 @@ def get_timeline(topicId):
         id_string = ",".join(map(lambda x: '"' + x + '"', item_ids))
         featured_nodes = '/nodes?where={"activity":{"$in":[' + id_string + ']},"isFeatured":true}&max_results=40'
         resp = tc.get(featured_nodes, headers=headers)
-        node_data = json.loads(resp.data)
+        node_data = json.loads(resp.data.decode("utf-8"))
         if "sort" in response["topic"] and response["topic"]["sort"] == 'desc':
             reverse = True
         else:
@@ -370,7 +370,7 @@ def get_posts_byname():
         else:
             table = collection
         r = tc.get("/" + table + "/" + name, headers=headers)
-        rs_data = json.loads(r.data)
+        rs_data = json.loads(r.data.decode("utf-8"))
         if "_error" not in rs_data and "_id" in rs_data:
             response = { "body": {} }
             collection_id = rs_data['_id']
@@ -379,7 +379,7 @@ def get_posts_byname():
                 if key != 'collection' and key != 'name':
                     req += '&' + key + '=' + request.args.get(key)
             resp = tc.get(req, headers=headers)
-            resp_data = json.loads(resp.data)
+            resp_data = json.loads(resp.data.decode("utf-8"))
             for i in resp_data['_items']:
                 replace_imageurl(i)
             return Response(json.dumps(resp_data), headers=resp.headers)  
