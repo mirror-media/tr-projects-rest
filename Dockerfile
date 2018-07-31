@@ -1,28 +1,15 @@
-FROM python:2-onbuild
-# FROM pypi/eve
+FROM python:3.5-alpine
 
-RUN groupadd user && useradd --create-home --home-dir /home/user -g user user
+RUN addgroup user && adduser -h /home/user -D user -G user -s /bin/sh
 
-COPY . /usr/src/app/tr-projects-rest 
+COPY . /usr/src/app/tr-projects-rest
 
-RUN set -x \
-    && apt-get update \
-    && apt-get install -y --no-install-recommends curl ca-certificates \
-    && apt-get install -y git
+WORKDIR /usr/src/app/tr-projects-rest
 
-RUN buildDeps=' \
-    gcc \
-    make \
-    python \
-    ' \
-    && set -x \
-    && apt-get update && apt-get install -y $buildDeps --no-install-recommends && rm -rf /var/lib/apt/lists/* \
+RUN apk update \
+    && apk add gcc libc-dev linux-headers \
     && pip install --upgrade pip \
-    # && pip install -r requirements.txt
-    && pip install flask \
-    && pip install Eve \
-    && pip install uwsgi 
+    && pip install -r requirements.txt
 
 EXPOSE 8080
-# CMD ["python", "/tr-projects-rest/server.py"]
-CMD ["/usr/local/bin/uwsgi", "--ini", "/usr/src/app/tr-projects-rest/server.ini"]
+CMD ["/usr/local/bin/uwsgi", "--ini", "server.ini"]
