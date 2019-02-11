@@ -8,8 +8,9 @@ Flask-PyMongo==0.4.1
 itsdangerous==0.24
 Jinja2==2.10
 MarkupSafe==1.0
+prometheus-client==0.7.0
 pymongo==3.7.1
+redis==3.2.1
 simplejson==3.16.0
 uWSGI==2.0.17.1
 Werkzeug==0.14.1
-redis==3.2.1

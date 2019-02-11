@@ -1,8 +1,13 @@
+# -*- coding:utf-8 -*-
 from datetime import datetime
 from eve import Eve
 from flask import redirect, request, Response, abort
 from multiprocessing import Process
 from settings import posts, ASSETS_URL, GCS_URL, ENV, REDIS_WRITE_HOST, REDIS_WRITE_PORT, REDIS_READ_HOST, REDIS_READ_PORT, REDIS_AUTH
+
+from werkzeug.security import check_password_hash
+from werkzeug.wsgi import DispatcherMiddleware
+
 import json
 import random
 import redis
@@ -10,7 +15,9 @@ import string
 import sys, getopt
 import time
 import urllib.parse
-# -*- coding:utf-8 -*-
+
+import time
+from prometheus_client import generate_latest, Counter, Histogram
 
 redis_read_port = int(REDIS_READ_PORT)
 redis_write_port = int(REDIS_WRITE_PORT)
@@ -19,6 +26,15 @@ redis_read = redis.Redis(connection_pool=redis_readPool)
 redis_writePool = redis.ConnectionPool(host = REDIS_WRITE_HOST, port = redis_write_port, password = REDIS_AUTH)
 redis_write = redis.Redis(connection_pool=redis_writePool)
 
+PROMETHEUS_CONTENT_TYPE = 'text/plain; version=0.0.4; charset=utf-8'
+
+http_request_count = Counter(
+    'http_request_total','HTTP request Total Count')
+
+http_request_latency = Histogram(
+    'http_request_latency_seconds', 'HTTP request latency',
+    ['endpoint'])
+
 def get_full_contacts(item, key):
     if key in item and item[key]:
         headers = dict(request.headers)
@@ -26,10 +42,10 @@ def get_full_contacts(item, key):
         all_writers =  ",".join(map(lambda x: '"' + str(x["_id"]) + '"' if type(x) is dict else '"' + str(x) + '"', item[key]))
         resp = tc.get('contacts?where={"_id":{"$in":[' + all_writers + ']}}', headers=headers)
         resp_string = str(resp.data, encoding = "utf-8")
-        if isinstance(resp_string, str): 
+        if isinstance(resp_string, str):
             resp_data = json.loads(resp_string)
             result = []
-            for i in item[key]: 
+            for i in item[key]:
                 for j in resp_data['_items']:
                     if (type(i) is dict and str(j['_id']) == str(i['_id'])) or j['_id'] == str(i):
                         result.append(j)
@@ -55,7 +71,7 @@ def get_full_relateds(item, key):
             p.start()
             p.join()
         result = []
-        for i in item[key]: 
+        for i in item[key]:
             for j in resp_data['_items']:
                 if (type(i) is dict and str(j['_id']) == str(i['_id'])) or j['_id'] == str(i):
                     result.append(j)
@@ -99,7 +115,7 @@ def clean_item(item):
             if isinstance(r, dict):
                 for k in list(r):
                     if k not in keep:
-                        del r[k]       
+                        del r[k]
     if 'sections' in item:
         for i in item['sections']:
             if isinstance(i, dict):
@@ -319,6 +335,8 @@ app.on_fetched_resource_listing += before_returning_listing
 app.on_fetched_resource_choices += before_returning_choices
 app.on_fetched_resource_topics += before_returning_topics
 app.on_fetched_resource_sections += before_returning_sections
+
+# Used to identify Campaign
 app.on_pre_GET += pre_GET
 app.on_post_GET += post_get_callback
 
@@ -416,12 +434,35 @@ def get_post():
     p.join()
     return Response(result, headers=dict(resp.headers))
 
+@app.before_request
+def start_request_latency_timer():
+    """
+    Inject request start time info in Flask request object.
+    Using Eve event hook could not get us the proper fields for current objects.
+    """
+    request.start = time.time()
+
+@app.after_request
+def stop_reqeust_latency_timer(response):
+    """
+    When the GET request about to finish,
+    stop the http request latency timer and create the latency metrics
+    """
+    resp_time = time.time() - request.start
+    http_request_count.inc()
+    http_request_latency.labels(request.path).observe(resp_time)
+    return response
+
+@app.route("/metrics")
+def metrics():
+    return Response(generate_latest(), mimetype=PROMETHEUS_CONTENT_TYPE)
+
 @app.route("/sections-featured", methods=['GET', 'POST'])
 def get_sections_latest():
     response = { "_items": {},
-                 "_links": { 
-                            "self": { "href":"sections-latest", "title": "sections latest"}, 
-                            "parent":{ "parend": "/", "title": "Home" } } }
+                 "_links": {
+                            "self": { "href":"sections-latest", "title": "sections latest"},
+                            "parent":{ "parent": "/", "title": "Home" } } }
     headers = dict(request.headers)
     content = request.args.get('content') or 'posts'
     tc = app.test_client()
@@ -459,8 +500,8 @@ def get_sections_latest():
                     clean_item(sec_item)
                     replace_imageurl(sec_item)
                 response['_items'][item['name']] = sec_items['_items']
-    return Response(json.dumps(response), headers=resp_header)        
-        
+    return Response(json.dumps(response), headers=resp_header)
+
 @app.route("/timeline/<topicId>", methods=['GET'])
 def get_timeline(topicId):
     if topicId:
@@ -516,7 +557,7 @@ def get_timeline(topicId):
                 replace_imageurl(node)
                 if "activity" in node and "_id" in node["activity"] and node["activity"]["_id"] in activities:
                     node["activity"] = activities[node["activity"]["_id"]]
-        return Response(json.dumps(response), headers=resp_header)        
+        return Response(json.dumps(response), headers=resp_header)
     else:
         abort(404)
 
@@ -525,9 +566,9 @@ def handle_combo():
     start = time.time()
     endpoints = {'posts': '/posts?sort=-publishedDate&clean=content&where={"style":{"$nin":["projects", "readr"]}}', 'sectionfeatured': '/sections-featured?content=meta', 'choices': '/choices?max_results=1&sort=-pickDate',\
      'meta': '/getmeta?sort=-publishedDate&clean=content&related=full', 'sections': '/sections?sort=sortOrder&max_results=20', 'topics':'/topics?sort=sortOrder&max_results=10', 'posts-vue': '/getlist?sort=-publishedDate&clean=content&max_results=20&related=false', 'projects': 'getlist?where={"style":{"$in":["projects", "readr"]}}&sort=-publishedDate&related=false'}
-    response = { "_endpoints": {}, 
+    response = { "_endpoints": {},
                  "_links": {
-                            "self": { "href":"sections-latest", "title": "sections latest"}, 
+                            "self": { "href":"sections-latest", "title": "sections latest"},
                             "parent":{ "parent": "/", "title": "Home" } } }
     headers = dict(request.headers)
     start = time.time()
@@ -554,19 +595,19 @@ def handle_combo():
                     response["_endpoints"][action] = {}
                     response["_endpoints"][action]['_items'] = action_data["_items"][0]["choices"]
                 else:
-                    response["_endpoints"][action] = action_data    
+                    response["_endpoints"][action] = action_data
                 for item in response["_endpoints"][action]["_items"]:
                     replace_imageurl(item)
     # If there is no request args for endpoint, set the header Content-Type to json
     if not ('Content-Type' in headers and headers['Content-Type'] == "application/json"):
-       headers['Content-Type'] = "application/json" 
+       headers['Content-Type'] = "application/json"
     p = Process(target=_redis_write, args=(request.full_path, json.dumps(response).encode("utf-8")))
     p.start()
     p.join()
     done = time.time()
     elapsed = str(done - start)
     #print("[INFO] API " + request.url + " interval " + elapsed)
-    return Response(json.dumps(response), headers=headers)        
+    return Response(json.dumps(response), headers=headers)
 
 @app.route("/posts-alias", methods=['GET', 'POST'])
 def get_posts_byname():
@@ -578,7 +619,7 @@ def get_posts_byname():
     content = request.args.get('content')
     if content == 'meta':
         endpoint = 'getmeta'
-    else: 
+    else:
         endpoint = 'posts'
     if collection in allow_collections:
         if collection == 'categories':
@@ -598,7 +639,7 @@ def get_posts_byname():
             resp_data = json.loads(resp.data.decode("utf-8"))
             for i in resp_data['_items']:
                 replace_imageurl(i)
-            return Response(json.dumps(resp_data), headers=resp.headers)  
+            return Response(json.dumps(resp_data), headers=resp.headers)
         else:
             return r
     else:
