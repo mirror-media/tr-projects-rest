@@ -5,9 +5,6 @@ from flask import redirect, request, Response, abort
 from multiprocessing import Process
 from settings import posts, ASSETS_URL, GCS_URL, ENV, REDIS_WRITE_HOST, REDIS_WRITE_PORT, REDIS_READ_HOST, REDIS_READ_PORT, REDIS_AUTH
 
-from werkzeug.security import check_password_hash
-from werkzeug.wsgi import DispatcherMiddleware
-
 import json
 import random
 import redis
@@ -16,8 +13,8 @@ import sys, getopt
 import time
 import urllib.parse
 
-import time
-from prometheus_client import generate_latest, Counter, Histogram
+from prometheus_client import generate_latest
+from middleware import MetricsMiddleware, PROMETHEUS_CONTENT_TYPE
 
 redis_read_port = int(REDIS_READ_PORT)
 redis_write_port = int(REDIS_WRITE_PORT)
@@ -25,15 +22,6 @@ redis_readPool = redis.ConnectionPool(host = REDIS_READ_HOST, port = redis_read_
 redis_read = redis.Redis(connection_pool=redis_readPool)
 redis_writePool = redis.ConnectionPool(host = REDIS_WRITE_HOST, port = redis_write_port, password = REDIS_AUTH)
 redis_write = redis.Redis(connection_pool=redis_writePool)
-
-PROMETHEUS_CONTENT_TYPE = 'text/plain; version=0.0.4; charset=utf-8'
-
-http_request_count = Counter(
-    'http_request_total','HTTP request Total Count')
-
-http_request_latency = Histogram(
-    'http_request_latency_seconds', 'HTTP request latency',
-    ['endpoint'])
 
 def get_full_contacts(item, key):
     if key in item and item[key]:
@@ -326,6 +314,9 @@ def post_get_callback(resource, request, payload):
 #app = Eve(auth=RolesAuth)
 
 app = Eve()
+
+MetricsMiddleware(app)
+
 app.on_replace_article += lambda item, original: remove_extra_fields(item)
 app.on_insert_article += lambda items: remove_extra_fields(items[0])
 app.on_fetched_resource_posts += before_returning_posts
@@ -434,24 +425,6 @@ def get_post():
     p.join()
     return Response(result, headers=dict(resp.headers))
 
-@app.before_request
-def start_request_latency_timer():
-    """
-    Inject request start time info in Flask request object.
-    Using Eve event hook could not get us the proper fields for current objects.
-    """
-    request.start = time.time()
-
-@app.after_request
-def stop_reqeust_latency_timer(response):
-    """
-    When the GET request about to finish,
-    stop the http request latency timer and create the latency metrics
-    """
-    resp_time = time.time() - request.start
-    http_request_count.inc()
-    http_request_latency.labels(request.path).observe(resp_time)
-    return response
 
 @app.route("/metrics")
 def metrics():
