@@ -1,15 +1,9 @@
-import time 
 from flask import request
-from prometheus_client import Counter, Histogram
+from datadog import DogStatsd
+import time 
 
-PROMETHEUS_CONTENT_TYPE = 'text/plain; version=0.0.4; charset=utf-8'
-
-http_request_count = Counter(
-    'http_request_total','HTTP request Total Count')
-
-http_request_latency = Histogram(
-    'http_request_latency_seconds', 'HTTP request latency',
-    ['endpoint'])
+# Setup statsd client for localhost:9125
+statsd = DogStatsd(host="localhost", port=9125)
 
 def start_request_latency_timer():
     """
@@ -24,10 +18,28 @@ def stop_request_latency_timer(response):
     stop the http request latency timer and create the latency metrics
     """
     resp_time = time.time() - request.start
-    http_request_count.inc()
-    http_request_latency.labels(request.path).observe(resp_time)
+    statsd.histogram('request_latency_seconds',
+        resp_time,
+        tags=[
+            'app:tr-projects-rest',
+            'path: %s' % request.path,
+        ]
+    )
+    return response
+
+def count_request(response):
+    statsd.increment('request_total',
+        tags=[
+            'app:tr-projects-rest',
+            'method: %s' % request.method, 
+            'path: %s' % request.path,
+            'status: %s' % str(response.status_code)
+            ]
+    )
     return response
 
 def MetricsMiddleware(app):
     app.before_request(start_request_latency_timer)
+    app.after_request(count_request)
     app.after_request(stop_request_latency_timer)
+    

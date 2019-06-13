@@ -13,8 +13,7 @@ import sys, getopt
 import time
 import urllib.parse
 
-from prometheus_client import generate_latest
-from middleware import MetricsMiddleware, PROMETHEUS_CONTENT_TYPE
+from middleware import MetricsMiddleware
 
 redis_read_port = int(REDIS_READ_PORT)
 redis_write_port = int(REDIS_WRITE_PORT)
@@ -424,11 +423,6 @@ def get_post():
     p.start()
     p.join()
     return Response(result, headers=dict(resp.headers))
-
-
-@app.route("/metrics")
-def metrics():
-    return Response(generate_latest(), mimetype=PROMETHEUS_CONTENT_TYPE)
 
 @app.route("/sections-featured", methods=['GET', 'POST'])
 def get_sections_latest():
