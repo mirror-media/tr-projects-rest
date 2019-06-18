@@ -16,6 +16,27 @@ REDIS_WRITE_PORT = 6379
 REDIS_READ_HOST = '127.0.0.1'
 REDIS_READ_PORT = 6379
 REDIS_AUTH = 'foo'
+REDIS_RULES = {
+  "/posts": 604800,
+  "/meta": 0,
+  "/listing": 0,
+  # cache for 7 days
+  "/images": 604800,
+  # "/albums": 604800,
+  # "/partners": 604800,
+  # "/externals": 604800,
+  # "/event": 604800,
+  # "/topics": 604800,
+  # "/contacts": 604800,
+  # cache for 10 mins
+  "/albums": 600,
+  "/event": 600,
+  "/topics": 600,
+  # cache for 24 hours
+  "/partners": 86400,
+  "/externals": 86400,
+  "/contacts": 86400,
+}
 
 # ALLOW ACTIONS
 DEBUG = False

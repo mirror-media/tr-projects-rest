@@ -18,6 +18,9 @@ import urllib.parse
 
 from helpers.metrics import MetricsMiddleware
 
+from redisware import Redisware, RedisCache
+from settings import REDIS_RULES
+
 redis_read_port = int(REDIS_READ_PORT)
 redis_write_port = int(REDIS_WRITE_PORT)
 redis_readPool = redis.ConnectionPool(host = REDIS_READ_HOST, port = redis_read_port, password = REDIS_AUTH)
@@ -434,6 +437,9 @@ app.on_fetched_resource_sections += before_returning_sections
 # Grand scale modification
 app.on_pre_GET += pre_get_callback
 app.on_post_GET += post_get_callback
+
+redis_cache = RedisCache(read_target=redis_read, write_target=redis_write)
+app.wsgi_app = Redisware(app.wsgi_app, rules=REDIS_RULES, cache=redis_cache)
 
 @app.route("/getlist", methods=['GET'])
 def get_list():
