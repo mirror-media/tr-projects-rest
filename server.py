@@ -19,7 +19,7 @@ import urllib.parse
 from helpers.metrics import MetricsMiddleware
 
 from redisware import Redisware, RedisCache
-from settings import REDIS_RULES
+from settings import REDIS_DEFAULT_TTL, REDIS_TTL_EXCEPTIONS
 
 redis_read_port = int(REDIS_READ_PORT)
 redis_write_port = int(REDIS_WRITE_PORT)
@@ -378,15 +378,17 @@ def pre_get_callback(resource, request, lookup):
     add additional lookup in the query
     """
     max_results = request.args.get('max_results')
-    req = urllib.parse.unquote(request.full_path)
-    global redis_read
-    general_cached = redis_read.get(req)
-    if general_cached is not None:
-        cached_resp = json.loads(general_cached)
-        if "header" in cached_resp:
-            cached_header = cached_resp['header']
-            del cached_resp["header"]
-            return Response(json.dumps(cached_resp), headers=cached_header)
+    if max_results is not None and int(max_results) > 25:
+        abort(404)
+    # req = urllib.parse.unquote(request.full_path)
+    # global redis_read
+    # general_cached = redis_read.get(req)
+    # if general_cached is not None:
+    #     cached_resp = json.loads(general_cached)
+    #     if "header" in cached_resp:
+    #         cached_header = cached_resp['header']
+    #         del cached_resp["header"]
+    #         return Response(json.dumps(cached_resp), headers=cached_header)
     isCampaign = request.args.get('isCampaign')
     if resource == 'posts' or resource == 'meta':
         if isCampaign:
@@ -439,7 +441,7 @@ app.on_pre_GET += pre_get_callback
 app.on_post_GET += post_get_callback
 
 redis_cache = RedisCache(read_target=redis_read, write_target=redis_write)
-app.wsgi_app = Redisware(app.wsgi_app, rules=REDIS_RULES, cache=redis_cache)
+app.wsgi_app = Redisware(app.wsgi_app, rules=REDIS_TTL_EXCEPTIONS, cache=redis_cache, default_ttl=REDIS_DEFAULT_TTL)
 
 @app.route("/getlist", methods=['GET'])
 def get_list():
