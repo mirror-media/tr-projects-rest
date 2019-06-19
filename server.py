@@ -23,6 +23,10 @@ redis_writePool = redis.ConnectionPool(host = REDIS_WRITE_HOST, port = redis_wri
 redis_write = redis.Redis(connection_pool=redis_writePool)
 
 def get_full_contacts(item, key):
+    """
+    get all the contacts
+    query string: /contacts?where={"_id": {"$in":[id1, id2, ...]}}
+    """
     if key in item and item[key]:
         headers = dict(request.headers)
         tc = app.test_client()
@@ -42,6 +46,10 @@ def get_full_contacts(item, key):
     return item
 
 def get_full_relateds(item, key):
+    """
+    get all relateds and cache result in redis
+    query string: /posts?where={"_id": {"$in":[id1, id2, ...]}}
+    """
     all_relateds =  ",".join(map(lambda x: '"' + str(x["_id"]) + '"' if type(x) is dict else '"' + str(x) + '"', item[key]))
     global redis_read
     #global redis_write
@@ -68,6 +76,11 @@ def get_full_relateds(item, key):
     return item
 
 def replace_imageurl(obj):
+    """
+    replace formal gcs storage url in 
+    - brief, content. image
+    - non-empty heroImage, og_image, heroVideo
+    """
     for key in [ 'brief', 'content' ]:
         if key in obj:
             obj_str = json.dumps(obj[key])
@@ -92,6 +105,16 @@ def replace_imageurl(obj):
     return obj
 
 def clean_item(item):
+    """
+    delete 
+    - _updated, _created
+    - all except relateds/title, heroImage, slug, _id
+    - sections/extend_cats, sytle, og_title, og_description, javascript, css, catogories
+    - heroImage/image/iptc, gcsDir, gcsBucket
+    - heroVideo/gcsDir, gcsBucket
+    - brief/draft
+    - content/draft
+    """
     if '_updated' in item:
         del item['_updated']
     if '_created' in item:
@@ -139,6 +162,15 @@ def clean_item(item):
     return item
 
 def before_returning_posts(response):
+    """
+    For each post data
+    - Delete brief/draft, content/draft
+    - If clean=content in query, also delete brief/html, content/html
+    - If post/style is 'script' wrap the <p> in content/html with <div>
+    - Replace image url
+    - If related=full, and 'style' is 'photography', get_full_related
+    - clean_item
+    """
     related = request.args.get('related')
     clean = request.args.get('clean')
     if '_items' in response and isinstance(response['_items'], list):
@@ -167,6 +199,11 @@ def before_returning_posts(response):
         abort(404)
 
 def before_returning_albums(response):
+    """
+    - delete brief/draft and brief/apiData in albums
+    - if replace!= false, replace the image url in albums
+    - if writer=full, get all the contacts for vocals
+    """
     writer = request.args.get('writers')
     replace = request.args.get('replace')
     items = response['_items']
@@ -182,6 +219,12 @@ def before_returning_albums(response):
     return response
 
 def before_returning_meta(response):
+    """
+    - delete brief/draft and brief/apiData in meta
+    - if replace!= false, replace the image url in meta
+    - if related=full, or related=full but there are relateds in response,
+    get all the related for meta
+    """
     related = request.args.get('related')
     replace = request.args.get('replace')
     items = response['_items']
@@ -200,6 +243,10 @@ def before_returning_meta(response):
     return response
 
 def before_returning_listing(response):
+    """
+    Delete brief/draft, apiData
+    Fill in heroVideo/coverPhoto, but only keep image,_id, description, tags, createTime
+    """
     if '_items' in response and isinstance(response['_items'], list):
         for item in response['_items']:
             item = clean_item(item)
@@ -221,6 +268,11 @@ def before_returning_listing(response):
     return response
 
 def before_returning_choices(response):
+    """
+    choices become full_relateds choices, but delete:
+    - content, relateds. writers, photographers, camera_man, sections, topics, vocals, tags
+    - brief/apiData, draft
+    """
     for item in response['_items']:
         item = get_full_relateds(item, 'choices')
         for i in item['choices']:
@@ -231,7 +283,6 @@ def before_returning_choices(response):
             if 'brief' in i:
                 if 'apiData' in i['brief']:
                     del i['brief']['apiData']
-            if 'brief' in i:
                 if 'draft' in i['brief']:
                     del i['brief']['draft']
             if 'writers' in i:
@@ -251,16 +302,21 @@ def before_returning_choices(response):
     return response
 
 def before_returning_topics(response):
+    """
+    delete brief/apiData, draft
+    """
     for item in response['_items']:
         if 'brief' in item:
             if 'apiData' in item['brief']:
                 del item['brief']['apiData']
-        if 'brief' in item:
             if 'draft' in item['brief']:
                 del item['brief']['draft']
     return response
 
 def before_returning_sections(response):
+    """
+    sort section
+    """
     items = response['_items']
     sortedItems = sorted(items, key = lambda x: x["sortOrder"])
     response['_items'] = sortedItems
@@ -272,7 +328,11 @@ def remove_extra_fields(item):
         if field not in accepted_fields and field != '_id':
             del item[field]
 
-def pre_GET(resource, request, lookup):
+def pre_get_callback(resource, request, lookup):
+    """
+    If requested resource is posts or meta, and isCampaign=true
+    add additional lookup in the query
+    """
     max_results = request.args.get('max_results')
     if max_results is not None and int(max_results) > 25:
         abort(404)
@@ -309,15 +369,18 @@ def post_get_callback(resource, request, payload):
     p = Process(target=_redis_write, args=(req, result, ttl))
     p.start()
     p.join()
-    
-#app = Eve(auth=RolesAuth)
 
+#app = Eve(auth=RolesAuth)
 app = Eve()
 
+# Wrap app with metrics layer
 MetricsMiddleware(app)
 
+# These two event hooks seems deprecated
 app.on_replace_article += lambda item, original: remove_extra_fields(item)
 app.on_insert_article += lambda items: remove_extra_fields(items[0])
+
+# Before return json, refining data content for posts, albums, meta, listing, choices, topics, sections
 app.on_fetched_resource_posts += before_returning_posts
 app.on_fetched_resource_albums += before_returning_albums
 app.on_fetched_resource_meta += before_returning_meta
@@ -326,8 +389,8 @@ app.on_fetched_resource_choices += before_returning_choices
 app.on_fetched_resource_topics += before_returning_topics
 app.on_fetched_resource_sections += before_returning_sections
 
-# Used to identify Campaign
-app.on_pre_GET += pre_GET
+# Grand scale modification
+app.on_pre_GET += pre_get_callback
 app.on_post_GET += post_get_callback
 
 @app.route("/getlist", methods=['GET'])
@@ -477,7 +540,6 @@ def get_timeline(topicId):
         response = {}
         response['topic'] = None
         activities = {}
-        event = {}
         headers = dict(request.headers)
         tc = app.test_client()
         topic_url = '/topics?where={"_id":"' + topicId + '"}'
@@ -571,8 +633,8 @@ def handle_combo():
     p = Process(target=_redis_write, args=(request.full_path, json.dumps(response).encode("utf-8")))
     p.start()
     p.join()
-    done = time.time()
-    elapsed = str(done - start)
+    # done = time.time()
+    # elapsed = str(done - start)
     #print("[INFO] API " + request.url + " interval " + elapsed)
     return Response(json.dumps(response), headers=headers)
 
@@ -596,7 +658,6 @@ def get_posts_byname():
         r = tc.get("/" + table + "/" + name, headers=headers)
         rs_data = json.loads(r.data.decode("utf-8"))
         if "_error" not in rs_data and "_id" in rs_data:
-            response = { "body": {} }
             collection_id = rs_data['_id']
             req = '/'+ endpoint + '?where={"' + collection + '":"' + collection_id + '"}'
             for key in dict(request.args):
