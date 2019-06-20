@@ -1,5 +1,6 @@
-from werkzeug.wrappers import Request
+from werkzeug.wrappers import Request, Response
 from flask import make_response
+from itertools import tee
 
 class RedisCache:
 
@@ -8,7 +9,6 @@ class RedisCache:
         self.writer = write_target
 
     def set(self, key, ttl, value):
-        print("RedisCache set: ",key, ttl)
         self.writer.setex(key, ttl, value)
 
     def get(self, key):
@@ -29,51 +29,33 @@ class Redisware(object):
         cached = None
 
         if (self.default_ttl == 0) and (request.path not in self._rules):
-            print("non cached conditions")
-            response = self.app(environ, start_response)
-
-            for r in response:
-                yield r
+            # Non-cache cases
+            return self.app(environ, start_response)
         else:
             # Cache cases
-            print("cached case")
             cached = self.cache.get(request.full_path)
-        
             if cached is not None:
                 # Cache hit, direct respond
-                print("cache hits:{}".format(request.full_path))
-                headers = [
-                    ('Content-Type', 'application/json'),
-                    ('Cache-Control', 'max-age=1500,must-revalidate'),
-                    # ('Content-Length', len([cached])),
-                    ]
-                start_response('200 OK', headers)
-                # Must create iterator
-                yield cached
-
+                response = Response(cached, content_type='application/json')
+                return response(environ, start_response)
             else:
                 # Cache miss, pass to Eve and save redis
-                print("cached misses:{}".format(request.full_path))
                 response = self.app(environ, start_response)
-
+                # Duplicate original iterator
+                resp_iter, redis_iter = tee(response, 2)
                 # Send response to redis unless 'error' exists in it
                 # ttl set to default or conform to exception rules
                 results = bytearray()
-
-                for r in response:
+                for r in redis_iter:
                     # extend the result bytearray
                     # cannot use append for bytes object
                     results.extend(r)
-                    # re-yield the iterator
-                    yield r
 
-                redis_content = results.decode('utf8')
-                if 'error' not in redis_content:
+                redis_content = results.decode('utf-8')
+                if 'error' not in redis_content and len(redis_content) != 0:
                     ttl = self.default_ttl
                     if request.path in self._rules:
                         ttl = self._rules[request.path]
                     self.cache.set(request.full_path, ttl, redis_content)
-                else:
-                    print('error response!')
 
-                return response
+                return resp_iter

@@ -24,7 +24,7 @@ REDIS_TTL_EXCEPTIONS = {
   "/albums": 600,
   "/event": 600,
   "/topics": 600,
-  "/lists": 600,
+  "/listing": 600,
   "/meta": 600,
   "/tags": 600,
   "/posts": 600,
