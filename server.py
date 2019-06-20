@@ -16,6 +16,8 @@ import sys, getopt
 import time
 import urllib.parse
 
+from helpers.metrics import MetricsMiddleware
+
 redis_read_port = int(REDIS_READ_PORT)
 redis_write_port = int(REDIS_WRITE_PORT)
 redis_readPool = redis.ConnectionPool(host = REDIS_READ_HOST, port = redis_read_port, password = REDIS_AUTH)
