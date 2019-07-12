@@ -16,18 +16,13 @@ REDIS_WRITE_PORT = 6379
 REDIS_READ_HOST = '127.0.0.1'
 REDIS_READ_PORT = 6379
 REDIS_AUTH = 'foo'
-REDIS_DEFAULT_TTL = 600
-REDIS_TTL_EXCEPTIONS = {
+REDIS_TTL = {
+  'default': 30,
+  'error': 600,
+}
+REDIS_EXCEPTIONS = {
   # cache for 7 days
   "/images": 604800,
-  # cache for 10 mins
-  "/albums": 600,
-  "/event": 600,
-  "/topics": 600,
-  "/listing": 600,
-  "/meta": 600,
-  "/tags": 600,
-  "/posts": 600,
   # cache for 24 hours
   "/partners": 86400,
   "/externals": 86400,

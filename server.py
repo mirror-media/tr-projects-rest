@@ -18,8 +18,8 @@ import urllib.parse
 
 from helpers.metrics import MetricsMiddleware
 
-from redisware import Redisware, RedisCache
-from settings import REDIS_DEFAULT_TTL, REDIS_TTL_EXCEPTIONS
+from helpers.redis import Redisware, RedisCache
+from settings import REDIS_TTL, REDIS_EXCEPTIONS
 
 redis_read_port = int(REDIS_READ_PORT)
 redis_write_port = int(REDIS_WRITE_PORT)
@@ -419,8 +419,6 @@ def post_get_callback(resource, request, payload):
 #app = Eve(auth=RolesAuth)
 app = Eve()
 
-# Wrap app with metrics layer
-MetricsMiddleware(app)
 
 # These two event hooks seems deprecated
 app.on_replace_article += lambda item, original: remove_extra_fields(item)
@@ -440,8 +438,11 @@ app.on_fetched_resource_sections += before_returning_sections
 app.on_pre_GET += pre_get_callback
 app.on_post_GET += post_get_callback
 
+# Enable metrics middle layer
+MetricsMiddleware(app)
+# Enable redis middleware
 redis_cache = RedisCache(read_target=redis_read, write_target=redis_write)
-app.wsgi_app = Redisware(app.wsgi_app, rules=REDIS_TTL_EXCEPTIONS, cache=redis_cache, default_ttl=REDIS_DEFAULT_TTL)
+app.wsgi_app = Redisware(app.wsgi_app, rules=REDIS_EXCEPTIONS, cache=redis_cache, ttl_config=REDIS_TTL)
 
 @app.route("/getlist", methods=['GET'])
 def get_list():
