@@ -74,7 +74,7 @@ class Redisware(object):
         request = Request(environ)
         cached = None
 
-        if (self.default_ttl == 0) and (request.path not in self._rules):
+        if (self.default_ttl == 0) and (self.error_ttl == 0) and (request.path not in self._rules):
             # Non-cache cases, go on with Flask
             return self.app(environ, start_response)
         else:
