@@ -1,6 +1,7 @@
 from werkzeug.wrappers import Request, Response
 from itertools import tee
 import json
+from multiprocessing import Process
 
 class RedisCache:
     '''
@@ -14,7 +15,7 @@ class RedisCache:
         self.reader = read_target
         self.writer = write_target
 
-    def set(self, key, ttl, value):
+    def set(self, key, value, ttl):
         '''
         set key:value with expiration ttl
         :param key: redis key
@@ -103,6 +104,7 @@ class Redisware(object):
                     ttl = self.error_ttl
                 if request.path in self._rules:
                     ttl = self._rules[request.path]
-                self.cache.set(request.full_path, ttl, resp_str)
-
+                p = Process(target=self.cache.set, args=(request.full_path, resp_str, ttl))
+                p.start()
+                p.join()
                 return resp_iter
