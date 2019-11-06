@@ -1,9 +1,11 @@
+import os
+
 # MONGO DATABASE SETTINGS FOR SAMPLE
+MONGO_URI = 'mongodb://localhost:27017/keystone-test'
 DATA_FORMAT = "a, %d %b %Y %H:%M:%S GMT+8"
-MONGO_HOST = 'localhost'
-MONGO_PORT = 27017
-MONGO_DBNAME = 'keystone-test'
+
 OPTIMIZE_PAGINATION_FOR_SPEED = True
+
 # The assets url is for production
 ASSETS_URL = 'https://www.mirrormedia.com.tw/'
 GCS_URL = 'https://storage.googleapis.com/mirrormedia-dev/'
@@ -2214,3 +2216,11 @@ IF_MATCH = False
 X_DOMAINS = '*'
 X_HEADERS = ['Content-Type']
 PAGINATION_DEFAULT = 10
+
+# override default settings for different env
+if os.environ.get("CLUSTER_ENV") == "dev":
+  from configs.dev import *
+elif os.environ.get("CLUSTER_ENV") == "prod":
+  from configs.prod import *
+elif os.environ.get("CLUSTER_ENV") == "local":
+  from configs.local import * 

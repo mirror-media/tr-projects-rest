@@ -1,3 +1,8 @@
+# Python compiled bytecode
 *.pyc
-settings.py
+# Editor files
 *.swp
+.vscode/
+
+# Confidential settings directory
+/configs
