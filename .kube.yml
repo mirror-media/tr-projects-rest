@@ -34,14 +34,9 @@ spec:
         - containerPort: 8080
           name: http
           protocol: TCP
-        volumeMounts:
-        - mountPath: /usr/src/app/tr-projects-rest/settings.py
-          name: configmap-volume
-          subPath: settings.py
-      volumes:
-      - name: configmap-volume
-        configMap:
-          name: rest-external
+        env:
+        - name: CLUSTER_ENV
+          value: "dev"
   revisionHistoryLimit: 5
   strategy:
     rollingUpdate:
