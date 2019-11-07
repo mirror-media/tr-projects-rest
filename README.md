@@ -17,6 +17,8 @@ brew install python
 ``` 
 
 ## Development
+
+Python Eve configures itself through `settings.py` by default. Here is  some default settings for local MongoDB and Redis help you run the server locally. To start it, simply use:
 ``` shell
 # set mongo database in settings.py
 python server.py
@@ -25,11 +27,25 @@ python server.py
 /usr/local/bin/python server.py
 ```
 
+If there are ip-address/password different from defaults, set them in `configs/local.py` to overwrite `settings.py`, and start the server setting environment variable `CLUSTER_ENV`:
+```shell
+CLUSTER_ENV=local python server.py
+```
+
+In `dev` and `prod` cluster, `CLUSTER_ENV` will be set to `dev` and `prod` correspondinly, and server will load `dev.py` or `prod.py` based on `CLUSTER_ENV`.
+
 ## Deploy
+### Production
 
 ``` shell
-sudo python gevent_web.py &
+CLUSTER_ENV=prod uwsgi --ini uwsgi.ini &
 ```
+### Test uwsgi settings with virtualenv locally
+
+```shell
+uwsgi --ini uwsgi.ini -H [PATH_TO_VIRTUALENV]
+```
+`CLUSTER_ENV` could be used here, too.
 
 ## Script
 
