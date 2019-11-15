@@ -20,7 +20,7 @@ pipeline:
     secrets: [google_credentials]
     commands:
     - gcloud source repos clone configs mm_configs
-    - cp mm_configs/mirror-media/tr-projects-rest/configs ./configs
+    - cp -r mm_configs/mirror-media/tr-projects-rest/configs ./configs
     - rm -rf mm_configs
     when:
       event: [push]
