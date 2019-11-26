@@ -537,6 +537,17 @@ post_schema = {
         },
     },
   },
+  'vocals': {
+    'type': 'list',
+    'schema': {
+        'type': 'objectid',
+        'data_relation': {
+            'resource': 'contacts',
+            'field': '_id',
+            'embeddable': True
+        },
+    },
+  },
   'photographers': {
     'type': 'list',
     'schema': {
@@ -688,6 +699,14 @@ post_schema = {
   'og_description': {
     'type': 'string',
   },
+  'audio': {
+    'type': 'objectid',
+    'data_relation': {
+      'resource': 'audios',
+      'field': '_id',
+      'embeddable': True
+    },
+  },
   'og_image': {
     'type': 'objectid',
     'data_relation': {
@@ -701,6 +720,9 @@ post_schema = {
   },
   'adTrace': {
     'type': 'string',
+  },
+  'isAudioSiteOnly': {
+    'type': 'boolean',
   },
   'isCampaign': {
     'type': 'boolean',
@@ -963,6 +985,17 @@ album_schema = {
       'embeddable': True
     },
   },
+  'vocals': {
+    'type': 'list',
+    'schema': {
+        'type': 'objectid',
+        'data_relation': {
+            'resource': 'contacts',
+            'field': '_id',
+            'embeddable': True
+        },
+    },
+  },
   'writers': {
     'type': 'list',
     'schema': {
@@ -973,6 +1006,20 @@ album_schema = {
             'embeddable': True
         },
     },
+  },
+  'photographers': {
+    'type': 'list',
+    'schema': {
+        'type': 'objectid',
+        'data_relation': {
+            'resource': 'contacts',
+            'field': '_id',
+            'embeddable': True
+        },
+    },
+  },
+  'extend_byline': {
+    'type': 'string',
   },
   'heroImage': {
     'type': 'objectid',
@@ -1072,6 +1119,9 @@ sections_schema = {
       'type': 'string',
     },
     'isFeatured': {
+      'type': 'boolean',
+    },
+    'isAudioSiteOnly': {
       'type': 'boolean',
     },
     'image': {
@@ -1808,7 +1858,7 @@ posts = {
         'filter': { '$or': [ { 'state': 'published' }, { 'state': 'invisible' } ] },
     },
     'resource_methods': ['GET'],
-    'embedded_fields': ['writers','photographers','camera_man','designers','engineers','heroImage', 'heroVideo', 'topics', 'sections', 'categories', 'tags', 'og_image', 'relateds'],
+    'embedded_fields': ['vocals','writers','photographers','camera_man','audio', 'designers','engineers','heroImage', 'heroVideo', 'topics', 'sections', 'categories', 'tags', 'og_image', 'relateds'],
     'cache_control': 'max-age=1500,must-revalidate',
     'cache_expires': 1500,
     'allow_unknown': False,
@@ -1846,7 +1896,7 @@ albums = {
         'filter': { '$or': [ { 'state': 'published' }, { 'state': 'invisible' } ] },
     },
     'resource_methods': ['GET'],
-    'embedded_fields': ['heroImage', 'heroVideo', 'sections', 'writers', 'categories', 'tags', 'og_image'],
+    'embedded_fields': ['heroImage', 'heroVideo', 'sections', 'writers', 'vocals', 'photographers', 'categories', 'tags', 'og_image'],
     'cache_control': 'max-age=1500,must-revalidate',
     'cache_expires': 1500,
     'allow_unknown': False,
@@ -1933,7 +1983,7 @@ listing = {
         'filter': { '$and': [ { 'state': 'published' }, { 'style': { '$nin': ['campaign' ] } } ] },
     },
     'resource_methods': ['GET'],
-    'embedded_fields': ['heroImage', 'sections', 'writers', 'og_image', 'heroVideo','categories'],
+    'embedded_fields': ['heroImage', 'sections', 'writers', 'og_image', 'heroVideo','categories', 'tags'],
     'cache_control': 'max-age=1500,must-revalidate',
     'cache_expires': 1500,
     'allow_unknown': False,
@@ -2223,4 +2273,4 @@ if os.environ.get("CLUSTER_ENV") == "dev":
 elif os.environ.get("CLUSTER_ENV") == "prod":
   from configs.prod import *
 elif os.environ.get("CLUSTER_ENV") == "local":
-  from configs.local import * 
+  from configs.local import *
