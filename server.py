@@ -439,7 +439,6 @@ def get_list():
         result = json.dumps(resp_object)
 
     return Response(result, headers=dict(resp.headers))
-    #return before_returning_listing(result)
 
 @app.route("/getmeta", methods=['GET'])
 def get_meta():
@@ -468,7 +467,6 @@ def get_meta():
         result = json.dumps(resp_object)
 
     return Response(result, headers=dict(resp.headers))
-    #return before_returning_listing(result)
 
 @app.route("/getposts", methods=['GET'])
 def get_post():
@@ -647,9 +645,6 @@ def handle_combo():
     p = Process(target=_redis_write, args=(request.full_path, json.dumps(response).encode("utf-8")))
     p.start()
     p.join()
-    # done = time.time()
-    # elapsed = str(done - start)
-    #print("[INFO] API " + request.url + " interval " + elapsed)
     return Response(json.dumps(response), headers=headers)
 
 @app.route("/posts-alias", methods=['GET', 'POST'])
