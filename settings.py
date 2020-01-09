@@ -2368,5 +2368,7 @@ if os.environ.get("CLUSTER_ENV") == "dev":
   from configs.dev import *
 elif os.environ.get("CLUSTER_ENV") == "prod":
   from configs.prod import *
+elif os.environ.get("CLUSTER_ENV") == "test":
+  from configs.test import *
 elif os.environ.get("CLUSTER_ENV") == "local":
   from configs.local import *

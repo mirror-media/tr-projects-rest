@@ -5,7 +5,7 @@ from flask import redirect, request, Response, abort
 from multiprocessing import Process
 from settings import posts, ASSETS_URL, GCS_URL, ENV, REDIS_WRITE_HOST, REDIS_WRITE_PORT, REDIS_READ_HOST, REDIS_READ_PORT, REDIS_AUTH
 
-from middleware import MetricsMiddleware
+# from middleware import MetricsMiddleware
 
 import json
 import random
@@ -442,7 +442,7 @@ app.on_post_GET += post_get_callback
 MetricsMiddleware(app)
 # Enable redis middleware
 redis_cache = RedisCache(read_target=redis_read, write_target=redis_write)
-app.wsgi_app = Redisware(app.wsgi_app, rules=REDIS_EXCEPTIONS, cache=redis_cache, ttl_config=REDIS_TTL)
+# app.wsgi_app = Redisware(app.wsgi_app, rules=REDIS_EXCEPTIONS, cache=redis_cache, ttl_config=REDIS_TTL)
 
 @app.route("/getlist", methods=['GET'])
 def get_list():
