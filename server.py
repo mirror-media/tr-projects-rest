@@ -5,8 +5,6 @@ from flask import redirect, request, Response, abort
 from multiprocessing import Process
 from settings import posts, ASSETS_URL, GCS_URL, ENV, REDIS_WRITE_HOST, REDIS_WRITE_PORT, REDIS_READ_HOST, REDIS_READ_PORT, REDIS_AUTH
 
-# from middleware import MetricsMiddleware
-
 import json
 import random
 import re
@@ -399,23 +397,6 @@ def pre_get_callback(resource, request, lookup):
         elif isCampaign is None:
             lookup.update({"isCampaign": False})
 
-def post_get_callback(resource, request, payload):
-    ttl = 600
-    if resource == 'images':
-        ttl = 7*24*60*60
-    if resource == 'partners' or resource == 'externals' or resource == 'contacts':
-        ttl = 24*60*60
-
-    result = payload.get_data().decode('utf-8')
-    check_resp = json.loads(result)
-    # cache the empty result to avoid the DDoS
-    if ("_items" in check_resp) and len(check_resp["_items"]) > 0:
-        ttl = 30
-    req = urllib.parse.unquote(request.full_path)
-    p = Process(target=_redis_write, args=(req, result, ttl))
-    p.start()
-    p.join()
-
 #app = Eve(auth=RolesAuth)
 app = Eve()
 
@@ -436,105 +417,17 @@ app.on_fetched_resource_sections += before_returning_sections
 
 # Grand scale modification
 app.on_pre_GET += pre_get_callback
-app.on_post_GET += post_get_callback
+
+# Hooks for refining duplicate endpoints
+app.on_fetched_resource_getlist += before_returning_listing
+app.on_fetched_resource_getmeta += before_returning_meta
+app.on_fetched_resource_getposts += before_returning_posts
 
 # Enable metrics middle layer
 MetricsMiddleware(app)
 # Enable redis middleware
 redis_cache = RedisCache(read_target=redis_read, write_target=redis_write)
-# app.wsgi_app = Redisware(app.wsgi_app, rules=REDIS_EXCEPTIONS, cache=redis_cache, ttl_config=REDIS_TTL)
-
-@app.route("/getlist", methods=['GET'])
-def get_list():
-    headers = dict(request.headers)
-    req = urllib.parse.unquote(request.full_path)
-    fetch_req = req.replace('getlist', 'listing')
-    start = time.time()
-    global redis_read
-    #global redis_write
-    listing_cached = redis_read.get(req)
-    total_time = (time.time() - start)*1000
-    if (total_time > 3):
-        print("get list from redis: " + str(total_time))
-    if listing_cached is not None:
-        cached_resp = json.loads(listing_cached)
-        if "header" in cached_resp:
-            listing_header = cached_resp['header']
-            del cached_resp["header"]
-            return Response(json.dumps(cached_resp), headers=listing_header)
-    tc = app.test_client()
-    resp = tc.get(fetch_req, headers=headers)
-    resp_object = json.loads(resp.data)
-    resp_object['header'] = dict(resp.headers)
-    if '_items' in resp_object and isinstance(resp_object['_items'], list):
-        resp_object = before_returning_listing(resp_object)
-        result = json.dumps(resp_object)
-        p = Process(target=_redis_write, args=(req, result))
-        p.start()
-        p.join()
-    else:
-        result = json.dumps(resp_object)
-
-    return Response(result, headers=dict(resp.headers))
-
-@app.route("/getmeta", methods=['GET'])
-def get_meta():
-    headers = dict(request.headers)
-    req = urllib.parse.unquote(request.full_path)
-    fetch_req = req.replace('getmeta', 'meta')
-    global redis_read
-    listing_cached = redis_read.get(req)
-    if listing_cached is not None:
-        cached_resp = json.loads(listing_cached)
-        if "header" in cached_resp:
-            listing_header = cached_resp['header']
-            del cached_resp["header"]
-            return Response(json.dumps(cached_resp), headers=listing_header)
-    tc = app.test_client()
-    resp = tc.get(fetch_req, headers=headers)
-    resp_object = json.loads(resp.data)
-    resp_object['header'] = dict(resp.headers)
-    if '_items' in resp_object and isinstance(resp_object['_items'], list):
-        resp_object = before_returning_meta(resp_object)
-        result = json.dumps(resp_object)
-        p = Process(target=_redis_write, args=(req, result))
-        p.start()
-        p.join()
-    else:
-        result = json.dumps(resp_object)
-
-    return Response(result, headers=dict(resp.headers))
-
-@app.route("/getposts", methods=['GET'])
-def get_post():
-    headers = dict(request.headers)
-    req = urllib.parse.unquote(request.full_path)
-    fetch_req = req.replace('getposts', 'posts')
-    start = time.time()
-    global redis_read
-    listing_cached = redis_read.get(req)
-    total_time = (time.time() - start)*1000
-    if (total_time > 3):
-        print("getpost from redis: " + str(total_time))
-    if listing_cached is not None:
-        cached_resp = json.loads(listing_cached)
-        if "header" in cached_resp:
-            listing_header = cached_resp['header']
-            del cached_resp["header"]
-            return Response(json.dumps(cached_resp), headers=listing_header)
-    tc = app.test_client()
-    resp = tc.get(fetch_req, headers=headers)
-    try:
-        resp_object = json.loads(resp.data)
-    except:
-        resp_object = {}
-    resp_object['header'] = dict(resp.headers)
-    resp_object = before_returning_posts(resp_object)
-    result = json.dumps(resp_object)
-    p = Process(target=_redis_write, args=(req, result, 604800))
-    p.start()
-    p.join()
-    return Response(result, headers=dict(resp.headers))
+app.wsgi_app = Redisware(app.wsgi_app, rules=REDIS_EXCEPTIONS, cache=redis_cache, ttl_config=REDIS_TTL)
 
 @app.route("/sections-featured", methods=['GET', 'POST'])
 def get_sections_latest():
@@ -564,6 +457,7 @@ def get_sections_latest():
             p.join()
         else:
             section_items = { "_items": [] }
+
     for item in section_items:
         if (item['name'] == 'foodtravel'):
             if (content == 'meta'):
