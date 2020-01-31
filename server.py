@@ -6,11 +6,9 @@ from multiprocessing import Process
 from settings import posts, ASSETS_URL, GCS_URL, ENV, REDIS_WRITE_HOST, REDIS_WRITE_PORT, REDIS_READ_HOST, REDIS_READ_PORT, REDIS_AUTH
 
 import json
-import random
 import re
 import redis
 import string
-import sys, getopt
 import time
 import urllib.parse
 
@@ -378,15 +376,6 @@ def pre_get_callback(resource, request, lookup):
     max_results = request.args.get('max_results')
     if max_results is not None and int(max_results) > 25:
         abort(404)
-    # req = urllib.parse.unquote(request.full_path)
-    # global redis_read
-    # general_cached = redis_read.get(req)
-    # if general_cached is not None:
-    #     cached_resp = json.loads(general_cached)
-    #     if "header" in cached_resp:
-    #         cached_header = cached_resp['header']
-    #         del cached_resp["header"]
-    #         return Response(json.dumps(cached_resp), headers=cached_header)
     isCampaign = request.args.get('isCampaign')
     if resource == 'posts' or resource == 'meta':
         if isCampaign:
@@ -558,7 +547,6 @@ def handle_combo():
         if action in endpoints:
             action_resp = tc.get(endpoints[action], headers=headers)
             headers = action_resp.headers
-            # print(json.loads(str(action_resp.data)))
             action_data = json.loads(action_resp.data.decode("utf-8"))
             if "_error" not in action_data and "_items" in action_data and len(action_data["_items"]) > 0:
                 if '_meta' in action_data:
