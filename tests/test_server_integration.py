@@ -1,7 +1,6 @@
 import unittest
 import json
-from server import app
-from pymongo import MongoClient
+from server import app, redis_cache, redis_write
 import os
 
 class TestGetPosts(unittest.TestCase):
@@ -9,15 +8,11 @@ class TestGetPosts(unittest.TestCase):
     def setUp(self):
         app.config['TESTING'] = True
         self.app = app.test_client()
-        # self.db = MongoClient(app.config['MONGO_URI'])['integration-test']
-        
-        # with open(os.path.abspath(os.path.dirname(__file__)) + '/fixtures/posts.json','r') as f:
-        #     posts = json.load(f)
-        #     self.db.posts.insert_many(posts)
+        self.redis = redis_cache
     
     def tearDown(self):
-        pass
-        # self.db.posts.drop()
+        redis_write.delete('/getposts?')
+        redis_write.delete('/posts?')
 
     def test_endpoint_exists(self):
         res = self.app.get('/getposts')
@@ -41,12 +36,24 @@ class TestGetPosts(unittest.TestCase):
             del exp['_links']
             self.assertEqual(res, exp)
 
+    def test_redis_cache_getposts(self):
+        
+        getpost_json = json.loads(self.app.get('/getposts').get_data())
+        redis_json = json.loads(self.redis.get("/getposts?"))
+        
+        self.assertIsNotNone(redis_json)
+        self.assertEqual(redis_json, getpost_json)
 
 class TestGetMeta(unittest.TestCase):
     '''test duplicate endpoint /getmeta'''
     def setUp(self):
         app.config['TESTING'] = True
         self.app = app.test_client()
+        self.redis = redis_cache
+
+    def tearDown(self):
+        redis_write.delete('/getmeta?')
+        redis_write.delete('/meta?')
 
     def test_endpoint_exists(self):
         res = self.app.get('/getmeta')
@@ -71,11 +78,24 @@ class TestGetMeta(unittest.TestCase):
             del exp['_links']
             self.assertEqual(res, exp)
 
+    def test_redis_cache_getmeta(self):
+        
+        getmeta_json = json.loads(self.app.get('/getmeta').get_data())
+        redis_json = json.loads(self.redis.get("/getmeta?"))
+        
+        self.assertIsNotNone(redis_json)
+        self.assertEqual(redis_json, getmeta_json)
+
 class TestGetList(unittest.TestCase):
     '''test duplicate endpoint /getlist'''
     def setUp(self):
         app.config['TESTING'] = True
         self.app = app.test_client()
+        self.redis = redis_cache
+
+    def tearDown(self):
+        redis_write.delete('/getlist?')
+        redis_write.delete('/listing?')
 
     def test_endpoint_exists(self):
         res = self.app.get('/getlist')
@@ -98,7 +118,14 @@ class TestGetList(unittest.TestCase):
             del res['_links']
             del exp['_links']
             self.assertEqual(res, exp)
-            
 
+    def test_redis_cache_getlist(self):
+        getlist_json = json.loads(self.app.get('/getlist').get_data())
+        
+        redis_json = json.loads(self.redis.get("/getlist?"))
+        self.assertIsNotNone(redis_json)
+
+        self.assertEqual(redis_json, getlist_json)
+    
 if __name__ == '__main__':
     unittest.main()
