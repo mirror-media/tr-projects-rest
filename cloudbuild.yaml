@@ -16,7 +16,7 @@ steps:
     args:
       - cp
       - >-
-        ./dockerignore/kubernetes-configs/tr-projects-rest/overlays/${BRANCH_NAME}/configs/settings.py
+        ./dockerignore/kubernetes-configs/tr-projects-rest/overlays/dev/configs/settings.py
       - /workspace/settings.py
 
   - name: bash
@@ -24,7 +24,7 @@ steps:
       - cp
       - "-r"
       - >-
-        ./dockerignore/kubernetes-configs/tr-projects-rest/overlays/${BRANCH_NAME}/configs
+        ./dockerignore/kubernetes-configs/tr-projects-rest/overlays/dev/configs
       - /workspace/
 
   - name: gcr.io/cloud-builders/docker
