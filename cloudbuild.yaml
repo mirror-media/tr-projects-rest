@@ -6,16 +6,19 @@ steps:
       - clone
       - github_mirror-media_kubernetes-configs
       - ./dockerignore/kubernetes-configs
+
   - name: bash
     args:
       - ls 
       - /workspace/
+
   - name: bash
     args:
       - cp
       - >-
         ./dockerignore/kubernetes-configs/tr-projects-rest/overlays/${BRANCH_NAME}/configs/settings.py
       - /workspace/settings.py
+
   - name: bash
     args:
       - cp
@@ -23,75 +26,28 @@ steps:
       - >-
         ./dockerignore/kubernetes-configs/tr-projects-rest/overlays/${BRANCH_NAME}/configs
       - /workspace/
-  - name: bash
-    args:
-      - cp
-      - >-
-        ./dockerignore/kubernetes-configs/tr-projects-rest/overlays/${BRANCH_NAME}/configs/dev.py
-      - /workspace/configs/dev.py
+
   - name: gcr.io/cloud-builders/docker
     args:
       - build
       - "-t"
       - "gcr.io/${PROJECT_ID}/tr-projects-rest:${BRANCH_NAME}_${SHORT_SHA}"
       - .
+
   - name: gcr.io/cloud-builders/docker
     args:
       - push
       - "gcr.io/${PROJECT_ID}/tr-projects-rest:${BRANCH_NAME}_${SHORT_SHA}"
-      #- gcr.io/$PROJECT_ID/tr-projects-rest
-  - name: launcher.gcr.io/google/ubuntu1604
+
+  # Deploy container image to Cloud Runs
+  - name: gcr.io/cloud-builders/gcloud
+    id: Deploy Image
+    entrypoint: 'bash'
     args:
       - '-c'
-      - >
-        # install kustomize
+      - |
 
-        curl -s
-        "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"
-        | bash
+        # deploy cloud run service
+        gcloud run deploy youtube-restful-api --image gcr.io/${PROJECT_ID}/tr-projects-rest:${BRANCH_NAME}_${SHORT_SHA} --region asia-east1
 
-
-        # mv kubernetes-configs folder
-
-        mv ./dockerignore/kubernetes-configs /workspace/kubernetes-configs
-
-
-        # cd to (dev|staging) environment kustimzation root
-
-        cd
-        /workspace/kubernetes-configs/tr-projects-rest/overlays/${BRANCH_NAME}
-
-
-        # update docker image
-
-        /workspace/kustomize edit set image
-        tr-projects-rest=gcr.io/${PROJECT_ID}/tr-projects-rest:${BRANCH_NAME}_${SHORT_SHA}
-
-
-        # back to kubernetes-configs root
-
-        cd /workspace/kubernetes-configs
-
-
-        /workspace/kustomize build
-        "./tr-projects-rest/overlays/${BRANCH_NAME}" >>
-        $_FILE_TO_DEPLOY
-
-        # print out configs
-
-        cat $_FILE_TO_DEPLOY
-    entrypoint: bash
-  - name: gcr.io/cloud-builders/kubectl
-    env:
-      - CLOUDSDK_COMPUTE_REGION=asia-east1-a
-      - CLOUDSDK_CONTAINER_CLUSTER=mirrormedia-staging
-    args:
-      - apply
-      - '-f'
-      - $_FILE_TO_DEPLOY
-      - '--validate=true'
 timeout: 300s
-images:
-  - gcr.io/$PROJECT_ID/tr-projects-rest
-substitutions:
-  _FILE_TO_DEPLOY: /workspace/config-to-deploy.txt 
