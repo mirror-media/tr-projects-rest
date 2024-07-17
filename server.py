@@ -7,7 +7,7 @@ from bson import json_util
 import redis
 import requests
 
-from helpers.metrics import MetricsMiddleware
+#from helpers.metrics import MetricsMiddleware
 from helpers.redis import Redisware, RedisCache
 from settings import REDIS_TTL, REDIS_EXCEPTIONS
 
@@ -39,7 +39,7 @@ def request_api(params, endpoint):
 app = Eve()
 
 # Enable metrics middle layer
-MetricsMiddleware(app)
+#MetricsMiddleware(app)
 # Enable redis middleware
 redis_cache = RedisCache(read_target=redis_read, write_target=redis_write)
 app.wsgi_app = Redisware(app.wsgi_app, rules=REDIS_EXCEPTIONS, cache=redis_cache, ttl_config=REDIS_TTL)
