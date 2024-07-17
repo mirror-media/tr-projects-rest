@@ -16,7 +16,7 @@ import urllib.parse
 import requests
 
 
-from helpers.metrics import MetricsMiddleware
+#from helpers.metrics import MetricsMiddleware
 from helpers.redis import Redisware, RedisCache
 from settings import REDIS_TTL, REDIS_EXCEPTIONS
 
@@ -479,7 +479,7 @@ app.on_fetched_resource_getmeta += before_returning_meta
 app.on_fetched_resource_getposts += before_returning_posts
 
 # Enable metrics middle layer
-MetricsMiddleware(app)
+#MetricsMiddleware(app)
 # Enable redis middleware
 redis_cache = RedisCache(read_target=redis_read, write_target=redis_write)
 app.wsgi_app = Redisware(app.wsgi_app, rules=REDIS_EXCEPTIONS, cache=redis_cache, ttl_config=REDIS_TTL)
